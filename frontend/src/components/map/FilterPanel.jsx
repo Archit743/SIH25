@@ -167,7 +167,7 @@ const FilterPanel = () => {
               {hasActiveFilters && (
                 <button 
                   onClick={clearAllFilters}
-                  className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm"
+                  className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm text-black"
                 >
                   Clear All
                 </button>

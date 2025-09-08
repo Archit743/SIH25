@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet-draw';
 
 const DrawingTools = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -25,7 +27,7 @@ const DrawingTools = () => {
 
   // Initialize Leaflet Draw handlers
   useEffect(() => {
-    if (!map || !window.L.Draw) return;
+    if (!map || !L.Draw) return;
 
     // Cleanup any existing handlers
     if (drawingHandlerRef.current) {
@@ -40,8 +42,12 @@ const DrawingTools = () => {
   }, [map]);
 
   const startDrawing = (mode) => {
-    if (!window.L.Draw) {
-      console.error('Leaflet Draw not loaded');
+    console.log('L object:', L);
+    console.log('L.Draw object:', L.Draw);
+    
+    if (!L || !L.Draw) {
+      console.error('Leaflet Draw not loaded. Please install leaflet-draw package or include it via CDN.');
+      alert('Drawing tools are not available. Please check the console for details.');
       return;
     }
 
@@ -66,7 +72,7 @@ const DrawingTools = () => {
     let handler;
     switch (mode) {
       case 'polygon':
-        handler = new window.L.Draw.Polygon(map, {
+        handler = new L.Draw.Polygon(map, {
           ...options,
           allowIntersection: false,
           drawError: {
@@ -76,14 +82,17 @@ const DrawingTools = () => {
         });
         break;
       case 'rectangle':
-        handler = new window.L.Draw.Rectangle(map, options);
+        handler = new L.Draw.Rectangle(map, options);
         break;
       case 'circle':
-        handler = new window.L.Draw.Circle(map, options);
+        handler = new L.Draw.Circle(map, {
+          ...options,
+          showRadius: false  // Disable showRadius to prevent potential similar issues
+        });
         break;
       case 'marker':
-        handler = new window.L.Draw.Marker(map, {
-          icon: window.L.divIcon({
+        handler = new L.Draw.Marker(map, {
+          icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#3388ff;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>',
             iconSize: [16, 16],
@@ -108,17 +117,14 @@ const DrawingTools = () => {
       // Add to map
       layer.addTo(map);
       
-      // Store reference
+      // Store reference - use drawingMode from state instead of mode parameter
       const layerId = Date.now().toString();
-      setDrawnLayers(prev => [...prev, { id: layerId, layer, geoJson, type: mode }]);
+      setDrawnLayers(prev => [...prev, { id: layerId, layer, geoJson, type: drawingMode }]);
       
       // Reset drawing state
       setIsDrawing(false);
       setDrawingMode(null);
       handler.disable();
-      
-      // You can add additional logic here to save to backend
-      // or integrate with your MapContext
     };
 
     map.once('draw:created', onDrawCreated);
