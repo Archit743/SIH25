@@ -78,16 +78,24 @@ const DrawingTools = () => {
           drawError: {
             color: '#e1e100',
             message: 'Cannot draw overlapping polygons'
-          }
+          },
+          showArea: false  // Disable area display
         });
         break;
       case 'rectangle':
-        handler = new L.Draw.Rectangle(map, options);
+        handler = new L.Draw.Rectangle(map, {
+          ...options,
+          showArea: false,  // Disable area display to avoid tooltip issues
+          metric: true,
+          feet: false,
+          repeatMode: false
+        });
         break;
       case 'circle':
         handler = new L.Draw.Circle(map, {
           ...options,
-          showRadius: false  // Disable showRadius to prevent potential similar issues
+          showRadius: false,  // Disable radius display
+          showArea: false     // Disable area display
         });
         break;
       case 'marker':
@@ -97,7 +105,8 @@ const DrawingTools = () => {
             html: '<div style="background-color:#3388ff;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>',
             iconSize: [16, 16],
             iconAnchor: [8, 8]
-          })
+          }),
+          repeatMode: false
         });
         break;
       default:
@@ -105,6 +114,13 @@ const DrawingTools = () => {
     }
 
     drawingHandlerRef.current = handler;
+
+    // Disable tooltips to prevent errors
+    if (handler._tooltip) {
+      handler._tooltip.dispose();
+      handler._tooltip = null;
+    }
+
     handler.enable();
 
     // Listen for drawing completion
