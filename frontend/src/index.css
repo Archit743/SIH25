@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@import "leaflet/dist/leaflet.css";
+
+body{
+  height: 100vh;
+  width: 100%;
+}
+
