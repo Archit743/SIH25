@@ -6,6 +6,22 @@ import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
 import 'leaflet/dist/leaflet.css';
 
+const MapInstanceSetter = () => {
+    const map = useMap();
+    const { setMapInstance } = useContext(MapContext);
+    
+    useEffect(() => {
+      console.log('Setting map instance in context');
+      setMapInstance(map);
+      
+      return () => {
+        setMapInstance(null);
+      };
+    }, [map, setMapInstance]);
+    
+    return null;
+  };
+
 const MapLayers = () => {
   const map = useMap();
   const { 
@@ -23,7 +39,6 @@ const MapLayers = () => {
     if (!name) return '';
     return name.toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
   };
-
 
   // Apply filters for zooming
   useEffect(() => {
@@ -302,21 +317,19 @@ const MapLayers = () => {
 };
 
 const MapContainer = () => {
-  const { mapCenter, zoom, setMapInstance } = useContext(MapContext);
+  const { mapCenter, zoom } = useContext(MapContext);
 
   return (
     <LeafletMap
       center={mapCenter}
       zoom={zoom}
       className="map-container"
-      whenCreated={(map) => {
-        setMapInstance(map);
-      }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
       />
+      <MapInstanceSetter />
       <MapLayers />
       <LayerControl />
       <MapLegend />
