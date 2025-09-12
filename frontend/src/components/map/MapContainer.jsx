@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { MapContext } from '../../context/MapContext';
 import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
-import SearchControl from './SearchControl'; // Add this import
+import SearchControl from './SearchControl'; 
 import 'leaflet/dist/leaflet.css';
 
 const MapInstanceSetter = () => {
@@ -98,7 +98,7 @@ const MapLayers = () => {
     try {
       const folderName = getStateFolderName(stateName);
       const encodedFolderName = encodeURIComponent(folderName);
-      const fileName = normalized === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${folderName}_DISTRICTS`;
+      const fileName = normalized === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${normalized}_DISTRICTS`;
       const encodedFileName = encodeURIComponent(fileName);
       const url = `https://raw.githubusercontent.com/datta07/INDIAN-SHAPEFILES/master/STATES/${encodedFolderName}/${encodedFileName}.geojson`;
       console.log(`Fetching districts for ${stateName}: ${url}`);
@@ -332,7 +332,7 @@ const MapLayers = () => {
       // add more
     };
     const normalized = normalizeStateName(stateName);
-    return folderMap[normalized] || stateName;
+    return folderMap[normalized] || normalized;
   };
 
   if (loadingBoundaries) {
