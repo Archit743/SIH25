@@ -1,13 +1,9 @@
-// MapContainer.js - Fixed boundary toggle, state switching, and proper layer management
 import React, { useContext, useEffect, useCallback } from 'react';
 import { MapContainer as LeafletMap, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapContext } from '../../context/MapContext';
 import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
-// import DrawingTools from './DrawingTools';
-// import FilterPanel from './FilterPanel';
-// import SearchControl from './SearchControl';
 import 'leaflet/dist/leaflet.css';
 
 const MapLayers = () => {
@@ -20,10 +16,16 @@ const MapLayers = () => {
     boundaryLayers, setBoundaryLayers,
     geoJsonData, setGeoJsonData,
     loadingBoundaries, setLoadingBoundaries,
-    boundariesEnabled, // New prop to check if boundaries are enabled
+    boundariesEnabled,
   } = useContext(MapContext);
+  // Helper function to add at the top of your component
+  const normalizeStateName = (name) => {
+    if (!name) return '';
+    return name.toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
+  };
 
-  // Apply filters for zooming (removed mock bounds)
+
+  // Apply filters for zooming
   useEffect(() => {
     let term = '';
     if (filters.village) term = filters.village;
@@ -31,13 +33,12 @@ const MapLayers = () => {
     else if (filters.state) term = filters.state;
     else return;
 
-    // Just log the filter change, no bounds fitting since we removed mock bounds
     console.log('Filter changed to:', term);
   }, [filters.village, filters.district, filters.state]);
 
-  // Load states GeoJSON on mount - only if boundaries are enabled
+  // Load states GeoJSON on mount
   useEffect(() => {
-    if (!boundariesEnabled) return; // Don't load if boundaries are disabled
+    if (!boundariesEnabled) return;
 
     const loadStates = async () => {
       if (geoJsonData.states) {
@@ -68,9 +69,9 @@ const MapLayers = () => {
     loadStates();
   }, [boundariesEnabled, geoJsonData.states, setGeoJsonData, setLoadingBoundaries]);
 
-  // Function to load districts - only if boundaries are enabled
+  // Function to load districts
   const loadDistricts = useCallback(async (stateName) => {
-    if (!boundariesEnabled) return; // Don't load if boundaries are disabled
+    if (!boundariesEnabled) return;
 
     const normalized = normalizeStateName(stateName);
     if (geoJsonData.districts[normalized]) {
@@ -109,32 +110,44 @@ const MapLayers = () => {
   useEffect(() => {
     if (!boundariesEnabled) {
       console.log('Boundaries disabled, removing all layers');
-      
-      // Remove states layer
-      if (boundaryLayers.states) {
-        map.removeLayer(boundaryLayers.states);
+      if (boundaryLayers.states || boundaryLayers.districts || selectedState || selectedDistrict || currentLevel !== 'india') {
+        if (boundaryLayers.states) {
+          try {
+            map.removeLayer(boundaryLayers.states);
+          } catch (error) {
+            console.error('Error removing states layer:', error);
+          }
+        }
+        if (boundaryLayers.districts) {
+          try {
+            map.removeLayer(boundaryLayers.districts);
+          } catch (error) {
+            console.error('Error removing districts layer:', error);
+          }
+        }
+        setBoundaryLayers({ states: null, districts: null });
+        if (selectedState !== null) setSelectedState(null);
+        if (selectedDistrict !== null) setSelectedDistrict(null);
+        if (currentLevel !== 'india') setCurrentLevel('india');
       }
-      
-      // Remove districts layer
-      if (boundaryLayers.districts) {
-        map.removeLayer(boundaryLayers.districts);
-      }
-      
-      // Clear boundary layers state
-      setBoundaryLayers({ states: null, districts: null });
-      
-      // Reset selections
-      setSelectedState(null);
-      setSelectedDistrict(null);
-      setCurrentLevel('india');
     }
-  }, [boundariesEnabled]); // Only depend on boundariesEnabled to avoid infinite loop
+  }, [boundariesEnabled, boundaryLayers.states, boundaryLayers.districts, selectedState, selectedDistrict, currentLevel, map, setBoundaryLayers, setSelectedState, setSelectedDistrict, setCurrentLevel]);
 
-  // Add states layer - only if boundaries are enabled
+  // Add states layer
   useEffect(() => {
-    if (!boundariesEnabled || !geoJsonData.states || boundaryLayers.states) return;
+    console.log('🔍 States layer effect triggered:', {
+      boundariesEnabled,
+      hasGeoJsonData: !!geoJsonData.states,
+      hasExistingLayer: !!boundaryLayers.states,
+      currentLevel
+    });
 
-    console.log('Adding states layer');
+    if (!boundariesEnabled || !geoJsonData.states || boundaryLayers.states) {
+      console.log('❌ States layer conditions not met, skipping');
+      return;
+    }
+
+    console.log('➕ Adding states layer to map');
     const statesLayer = L.geoJSON(geoJsonData.states, {
       style: { color: '#3388ff', weight: 2, fillOpacity: 0 },
       onEachFeature: (feature, layer) => {
@@ -143,52 +156,81 @@ const MapLayers = () => {
           console.warn('No state name in feature properties:', feature.properties);
         }
         layer.on('click', () => {
-          if (!stateName || !boundariesEnabled) return; // Check if boundaries are enabled
-          console.log(`State clicked: ${stateName}`);
-          
-          // CRITICAL FIX: Clear existing district layer BEFORE setting new state
-          if (boundaryLayers.districts) {
-            console.log('🧹 Removing existing district layer before state change');
-            map.removeLayer(boundaryLayers.districts);
-            setBoundaryLayers((prev) => ({ ...prev, districts: null }));
-          }
-          
-          // Fit bounds using the actual layer bounds
+        if (!stateName || !boundariesEnabled) return;
+        console.log(`State clicked: ${stateName}`);
+        
+        // Force remove existing district layer
+        if (boundaryLayers.districts) {
+          console.log('🧹 Removing existing district layer before state change');
           try {
-            map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+            map.removeLayer(boundaryLayers.districts);
           } catch (error) {
-            console.error('Error getting bounds:', error);
+            console.error('Error removing district layer:', error);
           }
-          
-          // Set new state selections
-          setSelectedState(stateName);
-          setSelectedDistrict(null);
-          setCurrentLevel('state');
-          
-          // Load districts for the new state
-          loadDistricts(stateName);
-        });
+          // Immediately clear the reference
+          setBoundaryLayers((prev) => ({ ...prev, districts: null }));
+        }
+        
+        try {
+          map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+        } catch (error) {
+          console.error('Error getting bounds:', error);
+        }
+        
+        setSelectedState(stateName);
+        setSelectedDistrict(null);
+        setCurrentLevel('state');
+        loadDistricts(stateName);
+      });
         layer.bindPopup(`State: ${stateName}`);
       },
     }).addTo(map);
+    
     setBoundaryLayers((prev) => ({ ...prev, states: statesLayer }));
-  }, [boundariesEnabled, geoJsonData.states, boundaryLayers.states, map, setBoundaryLayers, setSelectedState, setSelectedDistrict, setCurrentLevel, loadDistricts, boundaryLayers.districts]);
+    console.log('✅ States layer added successfully');
+  }, [boundariesEnabled, geoJsonData.states, boundaryLayers.states, currentLevel, map, setBoundaryLayers, setSelectedState, setSelectedDistrict, setCurrentLevel, loadDistricts]);
 
-  // Add districts layer - only if boundaries are enabled and state is selected
+  // Add districts layer
   useEffect(() => {
-    if (!boundariesEnabled || !selectedState) return;
+    console.log('🔍 District layer effect triggered:', {
+      boundariesEnabled,
+      selectedState,
+      hasDistrictLayer: !!boundaryLayers.districts,
+      currentLevel,
+      hasDistrictData: selectedState ? !!geoJsonData.districts[normalizeStateName(selectedState)] : false
+    });
+
+    if (!boundariesEnabled || !selectedState) {
+      if (boundaryLayers.districts) {
+        console.log('Removing district layer due to boundaries disabled or no state selected');
+        try {
+          map.removeLayer(boundaryLayers.districts);
+          setBoundaryLayers((prev) => ({ ...prev, districts: null }));
+        } catch (error) {
+          console.error('Error removing district layer:', error);
+        }
+      }
+      return;
+    }
 
     const normalizedState = normalizeStateName(selectedState);
+    const districtData = geoJsonData.districts[normalizedState];
     
-    // Only add district layer if:
-    // 1. We have a selected state
-    // 2. We're at state level
-    // 3. We have the district data
-    // 4. We don't already have a district layer
-    if (currentLevel === 'state' && geoJsonData.districts[normalizedState] && !boundaryLayers.districts) {
-      console.log(`Adding districts layer for ${selectedState}`);
-      const distData = geoJsonData.districts[normalizedState];
-      const districtsLayer = L.geoJSON(distData, {
+    // Check if we have district data for the selected state
+    if (districtData && (currentLevel === 'state' || currentLevel === 'district')) {
+      
+      // Remove existing district layer if it exists
+      if (boundaryLayers.districts) {
+        console.log('🧹 Removing existing district layer before adding new one');
+        try {
+          map.removeLayer(boundaryLayers.districts);
+        } catch (error) {
+          console.error('Error removing existing district layer:', error);
+        }
+      }
+      
+      console.log(`➕ Adding districts layer for ${selectedState}`);
+      const districtsLayer = L.geoJSON(districtData, {
         style: { color: '#ff7733', weight: 1.5, fillOpacity: 0 },
         onEachFeature: (feature, layer) => {
           const distName = feature.properties.dtname || 'Unknown District';
@@ -196,10 +238,9 @@ const MapLayers = () => {
             console.warn('No district name in feature properties:', feature.properties);
           }
           layer.on('click', () => {
-            if (!distName || !boundariesEnabled) return; // Check if boundaries are enabled
+            if (!distName || !boundariesEnabled || !selectedState) return;
             console.log(`District clicked: ${distName}`);
             
-            // Fit bounds using the actual layer bounds
             try {
               map.fitBounds(layer.getBounds());
             } catch (error) {
@@ -212,37 +253,34 @@ const MapLayers = () => {
           layer.bindPopup(`District: ${distName}`);
         },
       }).addTo(map);
+      
       setBoundaryLayers((prev) => ({ ...prev, districts: districtsLayer }));
+      console.log('✅ Districts layer added successfully');
     }
-  }, [boundariesEnabled, selectedState, geoJsonData.districts, currentLevel, boundaryLayers.districts, map, setBoundaryLayers, setSelectedDistrict, setCurrentLevel]);
+  }, [boundariesEnabled, selectedState, geoJsonData.districts, currentLevel, map, setBoundaryLayers, setSelectedDistrict, setCurrentLevel]);
 
-  // Clear district layer when returning to India level
+  // Reset to India view
   useEffect(() => {
-    if (currentLevel === 'india' && boundaryLayers.districts) {
-      console.log('Clearing district layer on reset to India');
-      map.removeLayer(boundaryLayers.districts);
-      setBoundaryLayers((prev) => ({ ...prev, districts: null }));
+    if (currentLevel === 'india' && !selectedState && boundariesEnabled && boundaryLayers.states) {
+      console.log('🔄 Returning to India level - restoring full map view');
+      map.setView([20.5937, 78.9629], 5, { animate: true, duration: 1.0 });
     }
-  }, [currentLevel, boundaryLayers.districts, map, setBoundaryLayers]);
+  }, [currentLevel, selectedState, boundariesEnabled, boundaryLayers.states, map]);
 
-  // ENHANCED: Clear district layer when selectedState changes (switching between states)
+  // Clear district layer when selectedState changes
   useEffect(() => {
-    if (boundaryLayers.districts) {
-      console.log(`🔄 State changed to ${selectedState}, removing previous district layer`);
+    if (boundaryLayers.districts && !selectedState) {
+      console.log('No state selected, removing district layer');
       try {
         map.removeLayer(boundaryLayers.districts);
         setBoundaryLayers((prev) => ({ ...prev, districts: null }));
-        console.log(`✅ Previous district layer removed successfully`);
+        if (selectedDistrict !== null) setSelectedDistrict(null);
       } catch (error) {
-        console.error('❌ Error removing previous district layer:', error);
+        console.error('Error removing district layer:', error);
       }
     }
-  }, [selectedState]); // This will run every time selectedState changes
+  }, [selectedState, boundaryLayers.districts, selectedDistrict, map, setBoundaryLayers, setSelectedDistrict]);
 
-  const normalizeStateName = (name) => {
-    if (!name) return '';
-    return name.toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
-  };
 
   const getStateFolderName = (stateName) => {
     const folderMap = {
@@ -282,9 +320,6 @@ const MapContainer = () => {
       <MapLayers />
       <LayerControl />
       <MapLegend />
-      {/* <DrawingTools />
-      <FilterPanel />
-      <SearchControl /> */}
     </LeafletMap>
   );
 };
