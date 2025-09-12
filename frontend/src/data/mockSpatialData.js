@@ -20,8 +20,8 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [77.675, 22.675], // Expanded from [77.9, 22.9]
-            [78.125, 22.675], // to cover 0.5° x 0.5°
+            [77.675, 22.675],
+            [78.125, 22.675],
             [78.125, 23.125],
             [77.675, 23.125],
             [77.675, 22.675]
@@ -48,7 +48,7 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [78.025, 17.025], // Expanded from [78.25, 17.25]
+            [78.025, 17.025],
             [78.475, 17.025],
             [78.475, 17.475],
             [78.025, 17.475],
@@ -76,7 +76,7 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [85.025, 20.025], // Expanded from [85.25, 20.25]
+            [85.025, 20.025],
             [85.475, 20.025],
             [85.475, 20.475],
             [85.025, 20.475],
@@ -104,7 +104,7 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [91.525, 23.525], // Expanded from [91.75, 23.75]
+            [91.525, 23.525],
             [91.975, 23.525],
             [91.975, 23.975],
             [91.525, 23.975],
@@ -132,7 +132,7 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [91.025, 23.525], // Expanded from [91.25, 23.75]
+            [91.025, 23.525],
             [91.475, 23.525],
             [91.475, 23.975],
             [91.025, 23.975],
@@ -160,7 +160,7 @@ export const mockClaims = {
         type: 'Polygon',
         coordinates: [
           [
-            [75.675, 22.175], // Expanded from [75.9, 22.4]
+            [75.675, 22.175],
             [76.125, 22.175],
             [76.125, 22.625],
             [75.675, 22.625],
