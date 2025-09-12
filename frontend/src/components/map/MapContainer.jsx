@@ -97,8 +97,9 @@ const MapLayers = () => {
     try {
       const folderName = getStateFolderName(stateName);
       const encodedFolderName = encodeURIComponent(folderName);
-      const fileName = normalized === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${normalized}_DISTRICTS`;
-      const url = `https://raw.githubusercontent.com/datta07/INDIAN-SHAPEFILES/master/STATES/${encodedFolderName}/${fileName}.geojson`;
+      const fileName = normalized === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${folderName}_DISTRICTS`;
+      const encodedFileName = encodeURIComponent(fileName);
+      const url = `https://raw.githubusercontent.com/datta07/INDIAN-SHAPEFILES/master/STATES/${encodedFolderName}/${encodedFileName}.geojson`;
       console.log(`Fetching districts for ${stateName}: ${url}`);
       const response = await fetch(url);
       if (!response.ok) {
@@ -299,14 +300,18 @@ const MapLayers = () => {
 
   const getStateFolderName = (stateName) => {
     const folderMap = {
-      'ODISHA': 'ORISSA',
-      'ORISSA': 'ORISSA',
-      'BIHAR': 'BIHAR',
-      'MADHYA_PRADESH': 'MADHYA PRADESH',
-      'JAMMU_AND_KASHMIR': 'JAMMU KASHMIR',
+      ODISHA: 'ORISSA',
+      ORISSA: 'ORISSA',
+      BIHAR: 'BIHAR',
+      MADHYA_PRADESH: 'MADHYA PRADESH',
+      JAMMU_AND_KASHMIR: 'JAMMU KASHMIR',
+      ANDHRA_PRADESH: 'ANDHRA PRADESH',
+      HIMACHAL_PRADESH: 'HIMACHAL PRADESH',
+      UTTAR_PRADESH: 'UTTAR PRADESH',
+      // add more
     };
     const normalized = normalizeStateName(stateName);
-    return folderMap[normalized] || normalized.replace(/_/g, ' ');
+    return folderMap[normalized] || stateName;
   };
 
   if (loadingBoundaries) {
