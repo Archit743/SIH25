@@ -29,15 +29,16 @@ export const MapProvider = ({ children }) => {
   }, []);
 
   const resetToIndia = useCallback(() => {
-    console.log('🏠 Reset to India called - boundaries enabled:', boundariesEnabled);
+    console.log('🏠 Reset to India called');
     console.log('🗺️ Current mapInstance:', !!mapInstance);
-    console.log('🔍 Current boundaryLayers:', {
+    console.log('🔍 Current level:', currentLevel);
+    console.log('🗺️ Current boundaryLayers:', {
       hasStates: !!boundaryLayers.states,
       hasDistricts: !!boundaryLayers.districts
     });
     
     // Always reset state-related variables first
-    console.log('🧹 Clearing state selections');
+    console.log('🧹 Clearing all selections and layers');
     setCurrentLevel('india');
     setSelectedState(null);
     setSelectedDistrict(null);
@@ -50,51 +51,31 @@ export const MapProvider = ({ children }) => {
       featureType: '' 
     });
     
-    // Handle boundary layer removal based on boundaries state
-    if (boundariesEnabled) {
-      console.log('🗺️ Boundaries ON: Removing district layer only, keeping states');
-      // Remove only district layer, keep states layer for navigation
-      if (boundaryLayers.districts) {
-        console.log('❌ Removing district layer');
-        try {
-          if (mapInstance) {
-            mapInstance.removeLayer(boundaryLayers.districts);
-          }
-          setBoundaryLayers(prev => ({ ...prev, districts: null }));
-        } catch (error) {
-          console.error('Error removing district layer:', error);
-          // Force clear the reference even if removal fails
-          setBoundaryLayers(prev => ({ ...prev, districts: null }));
+    // Remove ALL boundary layers (both navigation and search)
+    if (boundaryLayers.states) {
+      console.log('❌ Removing states layer');
+      try {
+        if (mapInstance) {
+          mapInstance.removeLayer(boundaryLayers.states);
         }
-      }
-      
-    } else {
-      console.log('🚫 Boundaries OFF: Removing all boundary layers');
-      // Remove all boundary layers when boundaries are disabled
-      if (boundaryLayers.states || boundaryLayers.districts) {
-        if (boundaryLayers.states) {
-          console.log('❌ Removing states layer');
-          try {
-            if (mapInstance) {
-              mapInstance.removeLayer(boundaryLayers.states);
-            }
-          } catch (error) {
-            console.error('Error removing states layer:', error);
-          }
-        }
-        if (boundaryLayers.districts) {
-          console.log('❌ Removing districts layer');
-          try {
-            if (mapInstance) {
-              mapInstance.removeLayer(boundaryLayers.districts);
-            }
-          } catch (error) {
-            console.error('Error removing districts layer:', error);
-          }
-        }
-        setBoundaryLayers({ states: null, districts: null });
+      } catch (error) {
+        console.error('Error removing states layer:', error);
       }
     }
+    
+    if (boundaryLayers.districts) {
+      console.log('❌ Removing districts layer (including search results)');
+      try {
+        if (mapInstance) {
+          mapInstance.removeLayer(boundaryLayers.districts);
+        }
+      } catch (error) {
+        console.error('Error removing districts layer:', error);
+      }
+    }
+    
+    // Clear all boundary layer references
+    setBoundaryLayers({ states: null, districts: null });
     
     // Always zoom to India view (force zoom even if already at level 5)
     if (mapInstance) {
@@ -114,8 +95,8 @@ export const MapProvider = ({ children }) => {
       console.warn('⚠️ MapInstance is null, cannot zoom');
     }
     
-    console.log('✅ Reset to India completed');
-  }, [boundariesEnabled, mapInstance, boundaryLayers]);
+    console.log('✅ Reset to India completed - all search results and navigation cleared');
+  }, [mapInstance, boundaryLayers, currentLevel]);
 
   const toggleBoundaries = useCallback(() => {
     const newState = !boundariesEnabled;
@@ -124,16 +105,34 @@ export const MapProvider = ({ children }) => {
     
     if (!newState) {
       console.log('🚫 Boundaries turned OFF: Triggering cleanup');
-      // Reset everything when boundaries are turned off
+      // Reset everything when boundaries are turned off, including search results
       setCurrentLevel('india');
       setSelectedState(null);
       setSelectedDistrict(null);
       
-      // The MapContainer useEffect will handle layer removal
+      // Clear any existing layers (including search results)
+      if (boundaryLayers.states && mapInstance) {
+        try {
+          mapInstance.removeLayer(boundaryLayers.states);
+        } catch (error) {
+          console.error('Error removing states layer:', error);
+        }
+      }
+      
+      if (boundaryLayers.districts && mapInstance) {
+        try {
+          mapInstance.removeLayer(boundaryLayers.districts);
+        } catch (error) {
+          console.error('Error removing districts layer:', error);
+        }
+      }
+      
+      setBoundaryLayers({ states: null, districts: null });
+      
     } else {
-      console.log('✅ Boundaries turned ON: MapContainer will add states layer');
+      console.log('✅ Boundaries turned ON: MapContainer will add states layer if not in search mode');
     }
-  }, [boundariesEnabled]);
+  }, [boundariesEnabled, boundaryLayers, mapInstance]);
 
   return (
     <MapContext.Provider

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { MapContext } from '../../context/MapContext';
 import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
+import SearchControl from './SearchControl'; // Add this import
 import 'leaflet/dist/leaflet.css';
 
 const MapInstanceSetter = () => {
@@ -122,29 +123,35 @@ const MapLayers = () => {
     }
   }, [boundariesEnabled, geoJsonData.districts, setGeoJsonData, setLoadingBoundaries]);
 
-  // Remove all boundary layers when boundaries are disabled
+  // Remove all boundary layers when boundaries are disabled (but preserve search results)
   useEffect(() => {
     if (!boundariesEnabled) {
-      console.log('Boundaries disabled, removing all layers');
-      if (boundaryLayers.states || boundaryLayers.districts || selectedState || selectedDistrict || currentLevel !== 'india') {
-        if (boundaryLayers.states) {
-          try {
-            map.removeLayer(boundaryLayers.states);
-          } catch (error) {
-            console.error('Error removing states layer:', error);
+      console.log('Boundaries disabled, removing navigation layers only');
+      
+      // Only remove layers if we're NOT in search mode
+      if (currentLevel !== 'search') {
+        if (boundaryLayers.states || boundaryLayers.districts || selectedState || selectedDistrict || currentLevel !== 'india') {
+          if (boundaryLayers.states) {
+            try {
+              map.removeLayer(boundaryLayers.states);
+            } catch (error) {
+              console.error('Error removing states layer:', error);
+            }
           }
-        }
-        if (boundaryLayers.districts) {
-          try {
-            map.removeLayer(boundaryLayers.districts);
-          } catch (error) {
-            console.error('Error removing districts layer:', error);
+          if (boundaryLayers.districts) {
+            try {
+              map.removeLayer(boundaryLayers.districts);
+            } catch (error) {
+              console.error('Error removing districts layer:', error);
+            }
           }
+          setBoundaryLayers({ states: null, districts: null });
+          if (selectedState !== null) setSelectedState(null);
+          if (selectedDistrict !== null) setSelectedDistrict(null);
+          if (currentLevel !== 'india') setCurrentLevel('india');
         }
-        setBoundaryLayers({ states: null, districts: null });
-        if (selectedState !== null) setSelectedState(null);
-        if (selectedDistrict !== null) setSelectedDistrict(null);
-        if (currentLevel !== 'india') setCurrentLevel('india');
+      } else {
+        console.log('Search mode active - preserving search results despite boundaries being disabled');
       }
     }
   }, [boundariesEnabled, boundaryLayers.states, boundaryLayers.districts, selectedState, selectedDistrict, currentLevel, map, setBoundaryLayers, setSelectedState, setSelectedDistrict, setCurrentLevel]);
@@ -206,7 +213,7 @@ const MapLayers = () => {
     console.log('✅ States layer added successfully');
   }, [boundariesEnabled, geoJsonData.states, boundaryLayers.states, currentLevel, map, setBoundaryLayers, setSelectedState, setSelectedDistrict, setCurrentLevel, loadDistricts]);
 
-  // Add districts layer
+  // Add districts layer (only for normal navigation, not search)
   useEffect(() => {
     console.log('🔍 District layer effect triggered:', {
       boundariesEnabled,
@@ -215,6 +222,12 @@ const MapLayers = () => {
       currentLevel,
       hasDistrictData: selectedState ? !!geoJsonData.districts[normalizeStateName(selectedState)] : false
     });
+
+    // Don't interfere if we're in search mode
+    if (currentLevel === 'search') {
+      console.log('❌ Search mode active, skipping normal district layer logic');
+      return;
+    }
 
     if (!boundariesEnabled || !selectedState) {
       if (boundaryLayers.districts) {
@@ -283,8 +296,14 @@ const MapLayers = () => {
     }
   }, [currentLevel, selectedState, boundariesEnabled, boundaryLayers.states, map]);
 
-  // Clear district layer when selectedState changes
+  // Clear district layer when selectedState changes (but not in search mode)
   useEffect(() => {
+    // Don't interfere if we're in search mode
+    if (currentLevel === 'search') {
+      console.log('❌ Search mode active, skipping district cleanup logic');
+      return;
+    }
+
     if (boundaryLayers.districts && !selectedState) {
       console.log('No state selected, removing district layer');
       try {
@@ -295,7 +314,7 @@ const MapLayers = () => {
         console.error('Error removing district layer:', error);
       }
     }
-  }, [selectedState, boundaryLayers.districts, selectedDistrict, map, setBoundaryLayers, setSelectedDistrict]);
+  }, [selectedState, boundaryLayers.districts, selectedDistrict, currentLevel, map, setBoundaryLayers, setSelectedDistrict]);
 
 
   const getStateFolderName = (stateName) => {
@@ -308,6 +327,8 @@ const MapLayers = () => {
       ANDHRA_PRADESH: 'ANDHRA PRADESH',
       HIMACHAL_PRADESH: 'HIMACHAL PRADESH',
       UTTAR_PRADESH: 'UTTAR PRADESH',
+      WEST_BENGAL: 'WEST BENGAL',
+      TAMIL_NADU: 'TAMIL NADU',
       // add more
     };
     const normalized = normalizeStateName(stateName);
@@ -332,11 +353,11 @@ const MapContainer = () => {
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
       />
       <MapInstanceSetter />
       <MapLayers />
       <LayerControl />
+      <SearchControl /> {/* Add the search control */}
       <MapLegend />
     </LeafletMap>
   );
