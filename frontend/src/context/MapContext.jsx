@@ -9,6 +9,7 @@ export const MapProvider = ({ children }) => {
   const [filters, setFilters] = useState({
     state: '',
     district: '',
+    subdistrict: '',
     village: '',
     tribalGroup: '',
     claimStatuses: [],
@@ -18,8 +19,17 @@ export const MapProvider = ({ children }) => {
   const [currentLevel, setCurrentLevel] = useState('india');
   const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
-  const [boundaryLayers, setBoundaryLayers] = useState({ states: null, districts: null });
-  const [geoJsonData, setGeoJsonData] = useState({ states: null, districts: {} });
+  const [selectedSubdistrict, setSelectedSubdistrict] = useState(null);
+  const [boundaryLayers, setBoundaryLayers] = useState({ 
+    states: null, 
+    districts: null, 
+    subdistricts: null 
+  });
+  const [geoJsonData, setGeoJsonData] = useState({ 
+    states: null, 
+    districts: {},
+    subdistricts: {} // Structure: { "STATE_NAME": { "DISTRICT_NAME": data } }
+  });
   const [loadingBoundaries, setLoadingBoundaries] = useState(false);
   const [boundariesEnabled, setBoundariesEnabled] = useState(false);
 
@@ -34,7 +44,8 @@ export const MapProvider = ({ children }) => {
     console.log('🔍 Current level:', currentLevel);
     console.log('🗺️ Current boundaryLayers:', {
       hasStates: !!boundaryLayers.states,
-      hasDistricts: !!boundaryLayers.districts
+      hasDistricts: !!boundaryLayers.districts,
+      hasSubdistricts: !!boundaryLayers.subdistricts
     });
     
     // Always reset state-related variables first
@@ -42,9 +53,11 @@ export const MapProvider = ({ children }) => {
     setCurrentLevel('india');
     setSelectedState(null);
     setSelectedDistrict(null);
+    setSelectedSubdistrict(null);
     setFilters({ 
       state: '', 
       district: '', 
+      subdistrict: '',
       village: '', 
       tribalGroup: '', 
       claimStatuses: [], 
@@ -64,7 +77,7 @@ export const MapProvider = ({ children }) => {
     }
     
     if (boundaryLayers.districts) {
-      console.log('❌ Removing districts layer (including search results)');
+      console.log('❌ Removing districts layer');
       try {
         if (mapInstance) {
           mapInstance.removeLayer(boundaryLayers.districts);
@@ -73,17 +86,26 @@ export const MapProvider = ({ children }) => {
         console.error('Error removing districts layer:', error);
       }
     }
+
+    if (boundaryLayers.subdistricts) {
+      console.log('❌ Removing subdistricts layer');
+      try {
+        if (mapInstance) {
+          mapInstance.removeLayer(boundaryLayers.subdistricts);
+        }
+      } catch (error) {
+        console.error('Error removing subdistricts layer:', error);
+      }
+    }
     
     // Clear all boundary layer references
-    setBoundaryLayers({ states: null, districts: null });
+    setBoundaryLayers({ states: null, districts: null, subdistricts: null });
     
     // Always zoom to India view (force zoom even if already at level 5)
     if (mapInstance) {
       console.log('🔍 Zooming to India view - current zoom:', mapInstance.getZoom());
-      // Force zoom by using a slightly different zoom level first, then to 5
       const currentZoom = mapInstance.getZoom();
       if (currentZoom === 5) {
-        // If already at zoom 5, zoom out slightly then back to 5
         mapInstance.setView([20.5937, 78.9629], 4, { animate: false });
         setTimeout(() => {
           mapInstance.setView([20.5937, 78.9629], 5, { animate: true, duration: 1.0 });
@@ -105,10 +127,10 @@ export const MapProvider = ({ children }) => {
     
     if (!newState) {
       console.log('🚫 Boundaries turned OFF: Triggering cleanup');
-      // Reset everything when boundaries are turned off, including search results
       setCurrentLevel('india');
       setSelectedState(null);
       setSelectedDistrict(null);
+      setSelectedSubdistrict(null);
       
       // Clear any existing layers (including search results)
       if (boundaryLayers.states && mapInstance) {
@@ -126,8 +148,16 @@ export const MapProvider = ({ children }) => {
           console.error('Error removing districts layer:', error);
         }
       }
+
+      if (boundaryLayers.subdistricts && mapInstance) {
+        try {
+          mapInstance.removeLayer(boundaryLayers.subdistricts);
+        } catch (error) {
+          console.error('Error removing subdistricts layer:', error);
+        }
+      }
       
-      setBoundaryLayers({ states: null, districts: null });
+      setBoundaryLayers({ states: null, districts: null, subdistricts: null });
       
     } else {
       console.log('✅ Boundaries turned ON: MapContainer will add states layer if not in search mode');
@@ -153,6 +183,8 @@ export const MapProvider = ({ children }) => {
         setSelectedState,
         selectedDistrict,
         setSelectedDistrict,
+        selectedSubdistrict,
+        setSelectedSubdistrict,
         boundaryLayers,
         setBoundaryLayers,
         geoJsonData,

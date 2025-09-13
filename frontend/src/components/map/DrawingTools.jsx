@@ -680,7 +680,7 @@ const DrawingTools = () => {
   };
 
   return (
-    <div className="absolute top-4 left-16 z-[1004]" ref={controlRef}>
+    <div className="absolute top-3 left-28 z-[1004]" ref={controlRef}>
       {/* Drawing Status Indicator */}
       {isDrawing && (
         <div className="absolute -top-12 left-0 bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg">

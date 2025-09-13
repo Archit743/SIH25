@@ -5,8 +5,11 @@ const SearchControl = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedSubdistrict, setSelectedSubdistrict] = useState('');
   const [availableDistricts, setAvailableDistricts] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [availableSubdistricts, setAvailableSubdistricts] = useState([]);
+  const [isLoadingDistricts, setIsLoadingDistricts] = useState(false);
+  const [isLoadingSubdistricts, setIsLoadingSubdistricts] = useState(false);
   const searchRef = useRef(null);
   
   const { 
@@ -18,6 +21,7 @@ const SearchControl = () => {
     setCurrentLevel,
     setSelectedState: setContextSelectedState,
     setSelectedDistrict: setContextSelectedDistrict,
+    setSelectedSubdistrict: setContextSelectedSubdistrict,
     boundariesEnabled,
     setBoundariesEnabled
   } = useContext(MapContext);
@@ -44,8 +48,13 @@ const SearchControl = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Helper function to normalize state names
+  // Helper functions to normalize names
   const normalizeStateName = (name) => {
+    if (!name) return '';
+    return name.toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
+  };
+
+  const normalizeDistrictName = (name) => {
     if (!name) return '';
     return name.toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
   };
@@ -63,7 +72,6 @@ const SearchControl = () => {
       UTTAR_PRADESH: 'UTTAR PRADESH',
       WEST_BENGAL: 'WEST BENGAL',
       TAMIL_NADU: 'TAMIL NADU',
-      // Add more as needed
     };
     const normalized = normalizeStateName(stateName);
     return folderMap[normalized] || normalized;
@@ -73,6 +81,7 @@ const SearchControl = () => {
   const loadDistricts = async (stateName) => {
     if (!stateName) {
       setAvailableDistricts([]);
+      setAvailableSubdistricts([]);
       return;
     }
 
@@ -88,11 +97,11 @@ const SearchControl = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsLoadingDistricts(true);
     try {
       const folderName = getStateFolderName(stateName);
       const encodedFolderName = encodeURIComponent(folderName);
-      const fileName = normalized === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${folderName}_DISTRICTS`;
+      const fileName = folderName === 'ORISSA' ? 'ODISHA_DISTRICTS' : `${folderName}_DISTRICTS`;
       const encodedFileName = encodeURIComponent(fileName);
       const url = `https://raw.githubusercontent.com/datta07/INDIAN-SHAPEFILES/master/STATES/${encodedFolderName}/${encodedFileName}.geojson`;
       
@@ -128,7 +137,80 @@ const SearchControl = () => {
       alert(`Failed to load districts for ${stateName}. Please try again.`);
       setAvailableDistricts([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingDistricts(false);
+    }
+  };
+
+  // Load subdistricts for selected district
+  const loadSubdistricts = async (stateName, districtName) => {
+    if (!stateName || !districtName) {
+      setAvailableSubdistricts([]);
+      return;
+    }
+
+    const normalizedState = normalizeStateName(stateName);
+    
+    // Check if we already have subdistrict data for the state
+    if (geoJsonData.subdistricts[normalizedState]) {
+      const subdistricts = geoJsonData.subdistricts[normalizedState].features
+        .filter(feature => {
+          const featureDistrictName = feature.properties.dtname || feature.properties.DISTRICT;
+          return featureDistrictName && featureDistrictName.toLowerCase().trim() === districtName.toLowerCase().trim();
+        })
+        .map(feature => feature.properties.sdtname)
+        .filter(Boolean)
+        .sort();
+      setAvailableSubdistricts(subdistricts);
+      return;
+    }
+
+    setIsLoadingSubdistricts(true);
+    try {
+      const folderName = getStateFolderName(stateName);
+      const encodedFolderName = encodeURIComponent(folderName);
+      const fileName = folderName === 'ORISSA' ? 'ODISHA_SUBDISTRICTS' : `${folderName}_SUBDISTRICTS`;
+      const encodedFileName = encodeURIComponent(fileName);
+      const url = `https://raw.githubusercontent.com/datta07/INDIAN-SHAPEFILES/master/STATES/${encodedFolderName}/${encodedFileName}.geojson`;
+      
+      console.log(`Loading subdistricts for ${stateName}: ${url}`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: File not found for ${stateName}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.type !== 'FeatureCollection') {
+        throw new Error('Invalid GeoJSON format');
+      }
+      
+      // Update context with subdistrict data
+      setGeoJsonData(prev => ({
+        ...prev,
+        subdistricts: {
+          ...prev.subdistricts,
+          [normalizedState]: data
+        }
+      }));
+      
+      // Extract subdistrict names for the selected district
+      const subdistricts = data.features
+        .filter(feature => {
+          const featureDistrictName = feature.properties.dtname || feature.properties.DISTRICT;
+          return featureDistrictName && featureDistrictName.toLowerCase().trim() === districtName.toLowerCase().trim();
+        })
+        .map(feature => feature.properties.sdtname)
+        .filter(Boolean)
+        .sort();
+      
+      setAvailableSubdistricts(subdistricts);
+      
+    } catch (error) {
+      console.error(`Failed to load subdistricts for ${districtName}, ${stateName}:`, error);
+      setAvailableSubdistricts([]);
+    } finally {
+      setIsLoadingSubdistricts(false);
     }
   };
 
@@ -137,92 +219,144 @@ const SearchControl = () => {
     const state = e.target.value;
     setSelectedState(state);
     setSelectedDistrict('');
+    setSelectedSubdistrict('');
+    setAvailableSubdistricts([]);
     loadDistricts(state);
+  };
+
+  // Handle district selection
+  const handleDistrictChange = (e) => {
+    const district = e.target.value;
+    setSelectedDistrict(district);
+    setSelectedSubdistrict('');
+    loadSubdistricts(selectedState, district);
   };
 
   // Handle search submit
   const handleSearch = async () => {
-    if (!selectedState || !selectedDistrict || !mapInstance) {
-      alert('Please select both state and district');
+    if (!selectedState || !mapInstance) {
+      alert('Please select at least a state');
       return;
     }
 
     try {
-      // Get district data
-      const normalized = normalizeStateName(selectedState);
-      const districtData = geoJsonData.districts[normalized];
-      
-      if (!districtData) {
-        alert('District data not available');
-        return;
-      }
+      let searchFeature = null;
+      let searchData = null;
+      let searchLevel = '';
+      let searchStyle = {};
 
-      console.log('Available district data:', districtData);
-      console.log('Looking for district:', selectedDistrict);
-      console.log('Available districts:', districtData.features.map(f => ({
-        dtname: f.properties.dtname,
-        DISTRICT: f.properties.DISTRICT,
-        allProps: Object.keys(f.properties)
-      })));
-
-      // Find the specific district - try multiple property names
-      const districtFeature = districtData.features.find(feature => {
-        const props = feature.properties;
-        const distName = props.dtname || props.DISTRICT || props.NAME || props.name;
-        if (distName) {
-          const match = distName.toLowerCase().trim() === selectedDistrict.toLowerCase().trim();
-          console.log(`Comparing "${distName}" with "${selectedDistrict}": ${match}`);
-          return match;
+      // Determine what to search for based on selections
+      if (selectedSubdistrict && selectedDistrict) {
+        // Search for subdistrict
+        const normalizedState = normalizeStateName(selectedState);
+        searchData = geoJsonData.subdistricts[normalizedState];
+        
+        if (!searchData) {
+          alert('Subdistrict data not available');
+          return;
         }
-        return false;
-      });
 
-      if (!districtFeature) {
-        console.error('District not found. Available districts:', 
-          districtData.features.map(f => f.properties.dtname || f.properties.DISTRICT || f.properties.NAME));
-        alert(`District "${selectedDistrict}" not found in the data`);
-        return;
-      }
+        searchFeature = searchData.features.find(feature => {
+          const subdistName = feature.properties.sdtname;
+          const featureDistrictName = feature.properties.dtname || feature.properties.DISTRICT;
+          return subdistName && subdistName.toLowerCase().trim() === selectedSubdistrict.toLowerCase().trim() &&
+                 featureDistrictName && featureDistrictName.toLowerCase().trim() === selectedDistrict.toLowerCase().trim();
+        });
 
-      console.log('Found district feature:', districtFeature);
-
-      // Clear ALL existing boundary layers (both from normal navigation and search)
-      if (boundaryLayers.states) {
-        try {
-          mapInstance.removeLayer(boundaryLayers.states);
-          console.log('Removed states layer');
-        } catch (error) {
-          console.error('Error removing states layer:', error);
+        if (!searchFeature) {
+          alert(`Subdistrict "${selectedSubdistrict}" not found in ${selectedDistrict}`);
+          return;
         }
-      }
-      
-      if (boundaryLayers.districts) {
-        try {
-          mapInstance.removeLayer(boundaryLayers.districts);
-          console.log('Removed districts layer');
-        } catch (error) {
-          console.error('Error removing districts layer:', error);
-        }
-      }
 
-      // Create and add only the selected district layer
-      const searchDistrictLayer = window.L.geoJSON(districtFeature, {
-        style: { 
+        searchLevel = 'subdistrict';
+        searchStyle = { 
+          color: '#8b5cf6', 
+          weight: 3, 
+          fillOpacity: 0.3,
+          fillColor: '#8b5cf6',
+          dashArray: '8, 4'
+        };
+
+      } else if (selectedDistrict) {
+        // Search for district
+        const normalized = normalizeStateName(selectedState);
+        searchData = geoJsonData.districts[normalized];
+        
+        if (!searchData) {
+          alert('District data not available');
+          return;
+        }
+
+        searchFeature = searchData.features.find(feature => {
+          const props = feature.properties;
+          const distName = props.dtname || props.DISTRICT || props.NAME || props.name;
+          return distName && distName.toLowerCase().trim() === selectedDistrict.toLowerCase().trim();
+        });
+
+        if (!searchFeature) {
+          alert(`District "${selectedDistrict}" not found`);
+          return;
+        }
+
+        searchLevel = 'district';
+        searchStyle = { 
           color: '#e74c3c', 
           weight: 3, 
           fillOpacity: 0.2,
           fillColor: '#e74c3c',
-          dashArray: '8, 4' // Dashed line to distinguish from normal navigation
+          dashArray: '8, 4'
+        };
+
+      } else {
+        // Search for state
+        if (!geoJsonData.states) {
+          alert('State data not available');
+          return;
+        }
+
+        searchFeature = geoJsonData.states.features.find(feature => {
+          const stateName = feature.properties.STNAME;
+          return stateName && stateName.toLowerCase().trim() === selectedState.toLowerCase().trim();
+        });
+
+        if (!searchFeature) {
+          alert(`State "${selectedState}" not found`);
+          return;
+        }
+
+        searchLevel = 'state';
+        searchStyle = { 
+          color: '#3388ff', 
+          weight: 3, 
+          fillOpacity: 0.1,
+          fillColor: '#3388ff',
+          dashArray: '8, 4'
+        };
+      }
+
+      // Clear ALL existing boundary layers
+      Object.keys(boundaryLayers).forEach(layerType => {
+        if (boundaryLayers[layerType]) {
+          try {
+            mapInstance.removeLayer(boundaryLayers[layerType]);
+            console.log(`Removed ${layerType} layer`);
+          } catch (error) {
+            console.error(`Error removing ${layerType} layer:`, error);
+          }
         }
       });
-      
-      // Add to map
-      searchDistrictLayer.addTo(mapInstance);
-      console.log('Added search district layer to map');
 
-      // Fit bounds to the district
-      const bounds = searchDistrictLayer.getBounds();
-      console.log('District bounds:', bounds);
+      // Create and add the search result layer
+      const searchLayer = window.L.geoJSON(searchFeature, {
+        style: searchStyle
+      });
+      
+      searchLayer.addTo(mapInstance);
+      console.log(`Added search ${searchLevel} layer to map`);
+
+      // Fit bounds to the search result
+      const bounds = searchLayer.getBounds();
+      console.log(`${searchLevel} bounds:`, bounds);
       
       mapInstance.fitBounds(bounds, { 
         padding: [30, 30],
@@ -233,15 +367,20 @@ const SearchControl = () => {
       // Clear context state to disconnect from normal navigation system
       setContextSelectedState(null);
       setContextSelectedDistrict(null);
-      setCurrentLevel('search'); // Special level for search results
+      setContextSelectedSubdistrict(null);
+      setCurrentLevel('search');
       
-      // Store only the search result layer
-      setBoundaryLayers({ states: null, districts: searchDistrictLayer });
+      // Store the search result layer based on what was searched
+      const newBoundaryLayers = { states: null, districts: null, subdistricts: null };
+      newBoundaryLayers[searchLevel === 'state' ? 'states' : 
+                       searchLevel === 'district' ? 'districts' : 'subdistricts'] = searchLayer;
+      setBoundaryLayers(newBoundaryLayers);
 
       // Close search modal
       setIsOpen(false);
       
-      console.log(`✅ Successfully searched and zoomed to: ${selectedDistrict}, ${selectedState} (search mode)`);
+      const searchTerm = selectedSubdistrict || selectedDistrict || selectedState;
+      console.log(`✅ Successfully searched and zoomed to: ${searchTerm} (${searchLevel} level)`);
 
     } catch (error) {
       console.error('Error during search:', error);
@@ -253,7 +392,9 @@ const SearchControl = () => {
   const resetSearch = () => {
     setSelectedState('');
     setSelectedDistrict('');
+    setSelectedSubdistrict('');
     setAvailableDistricts([]);
+    setAvailableSubdistricts([]);
   };
 
   return (
@@ -275,7 +416,7 @@ const SearchControl = () => {
           ? 'opacity-100 translate-y-0 scale-100 z-[1010]' 
           : 'opacity-0 -translate-y-4 scale-95 pointer-events-none z-[1003]'
       }`}>
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ width: '320px' }}>
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ width: '340px' }}>
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
             <div className="flex justify-between items-center">
@@ -319,16 +460,16 @@ const SearchControl = () => {
             {/* District Selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select District
+                Select District (Optional)
               </label>
               <select
                 value={selectedDistrict}
-                onChange={(e) => setSelectedDistrict(e.target.value)}
-                disabled={!selectedState || isLoading}
+                onChange={handleDistrictChange}
+                disabled={!selectedState || isLoadingDistricts}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="">
-                  {isLoading ? 'Loading districts...' : 
+                  {isLoadingDistricts ? 'Loading districts...' : 
                    !selectedState ? 'First select a state' : 
                    'Choose a district...'}
                 </option>
@@ -338,14 +479,44 @@ const SearchControl = () => {
               </select>
             </div>
 
+            {/* Subdistrict Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Subdistrict (Optional)
+              </label>
+              <select
+                value={selectedSubdistrict}
+                onChange={(e) => setSelectedSubdistrict(e.target.value)}
+                disabled={!selectedDistrict || isLoadingSubdistricts}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {isLoadingSubdistricts ? 'Loading subdistricts...' : 
+                   !selectedDistrict ? 'First select a district' : 
+                   availableSubdistricts.length === 0 ? 'No subdistricts available' :
+                   'Choose a subdistrict...'}
+                </option>
+                {availableSubdistricts.map(subdistrict => (
+                  <option key={subdistrict} value={subdistrict}>{subdistrict}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search Info */}
+            <div className="mb-4 p-2 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-600">
+                💡 You can search by state only, or narrow down to district/subdistrict level
+              </p>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex space-x-2">
               <button
                 onClick={handleSearch}
-                disabled={!selectedState || !selectedDistrict || isLoading}
+                disabled={!selectedState || isLoadingDistricts || isLoadingSubdistricts}
                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
               >
-                {isLoading ? (
+                {(isLoadingDistricts || isLoadingSubdistricts) ? (
                   <div className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

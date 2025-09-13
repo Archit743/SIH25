@@ -1,4 +1,4 @@
-// LayerControl.js - Updated with boundary toggle
+// LayerControl.js - Updated with subdistrict hierarchy display
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { TileLayer, useMap } from 'react-leaflet';
 import { MapContext } from '../../context/MapContext';
@@ -10,7 +10,15 @@ const LayerControl = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const controlRef = useRef(null);
   const map = useMap();
-  const { resetToIndia, boundariesEnabled, toggleBoundaries } = useContext(MapContext);
+  const { 
+    resetToIndia, 
+    boundariesEnabled, 
+    toggleBoundaries, 
+    currentLevel,
+    selectedState,
+    selectedDistrict,
+    selectedSubdistrict
+  } = useContext(MapContext);
 
   const layers = {
     openstreetmap: {
@@ -29,7 +37,7 @@ const LayerControl = () => {
       attribution: 'Tiles &copy; Esri',
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h3.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       )
     },
@@ -109,6 +117,30 @@ const LayerControl = () => {
     }
   };
 
+  // Generate breadcrumb display
+  const getBreadcrumb = () => {
+    if (currentLevel === 'search') {
+      return 'Search Results';
+    }
+    
+    const parts = [];
+    if (selectedState) parts.push(selectedState);
+    if (selectedDistrict) parts.push(selectedDistrict);
+    if (selectedSubdistrict) parts.push(selectedSubdistrict);
+    
+    return parts.length > 0 ? parts.join(' → ') : 'India';
+  };
+
+  const getCurrentLevelColor = () => {
+    switch (currentLevel) {
+      case 'search': return 'text-purple-600';
+      case 'subdistrict': return 'text-red-600';
+      case 'district': return 'text-orange-600';
+      case 'state': return 'text-blue-600';
+      default: return 'text-gray-600';
+    }
+  };
+
   return (
     <div className="absolute top-4 right-4 z-[1003]" ref={controlRef}>
       <div 
@@ -139,7 +171,7 @@ const LayerControl = () => {
           ? 'opacity-100 translate-y-0 scale-100 z-[1010]' 
           : 'opacity-0 -translate-y-4 scale-95 pointer-events-none z-[1003]'
       }`}>
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ width: '220px' }}>
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ width: '280px' }}>
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3 text-white">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-sm">Map Layers</h3>
@@ -147,6 +179,19 @@ const LayerControl = () => {
           </div>
           
           <div className="p-2">
+            {/* Current Location Display */}
+            <div className="mb-3 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+              <div className="text-xs text-gray-500 mb-1">Current View:</div>
+              <div className={`font-semibold text-sm ${getCurrentLevelColor()}`}>
+                {getBreadcrumb()}
+              </div>
+              {currentLevel !== 'india' && currentLevel !== 'search' && (
+                <div className="text-xs text-gray-400 mt-1">
+                  Level: {currentLevel.charAt(0).toUpperCase() + currentLevel.slice(1)}
+                </div>
+              )}
+            </div>
+
             {/* Boundary Toggle */}
             <div className="mb-3 p-2 bg-gray-50 rounded-lg">
               <button
