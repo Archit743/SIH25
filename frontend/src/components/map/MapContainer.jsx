@@ -5,6 +5,7 @@ import { MapContext } from '../../context/MapContext';
 import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
 import SearchControl from './SearchControl'; 
+import DrawingTools from './DrawingTools';
 import 'leaflet/dist/leaflet.css';
 
 const MapInstanceSetter = () => {
@@ -22,6 +23,31 @@ const MapInstanceSetter = () => {
     
     return null;
   };
+
+// New component to add the scale control
+const ScaleControl = () => {
+  const map = useMap();
+  
+  useEffect(() => {
+    // Add scale control to bottom left
+    const scaleControl = L.control.scale({
+      position: 'bottomleft',
+      metric: true,        // Show metric units (meters/kilometers)
+      imperial: false,     // Hide imperial units (feet/miles) - set to true if you want both
+      updateWhenIdle: false, // Update scale even during map movement for smoother updates
+      maxWidth: 150        // Maximum width of the scale bar in pixels
+    });
+    
+    scaleControl.addTo(map);
+    
+    // Cleanup: remove the control when component unmounts
+    return () => {
+      map.removeControl(scaleControl);
+    };
+  }, [map]);
+  
+  return null;
+};
 
 const MapLayers = () => {
   const map = useMap();
@@ -357,8 +383,10 @@ const MapContainer = () => {
       <MapInstanceSetter />
       <MapLayers />
       <LayerControl />
-      <SearchControl /> {/* Add the search control */}
+      <SearchControl />
       <MapLegend />
+      <DrawingTools />
+      <ScaleControl /> 
     </LeafletMap>
   );
 };

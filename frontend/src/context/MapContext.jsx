@@ -4,7 +4,7 @@ export const MapContext = createContext();
 
 export const MapProvider = ({ children }) => {
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
-  const [zoom, setZoom] = useState(8);
+  const [zoom, setZoom] = useState(5);
   const [layers, setLayers] = useState({});
   const [filters, setFilters] = useState({
     state: '',
