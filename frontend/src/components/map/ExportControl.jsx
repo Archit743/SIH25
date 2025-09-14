@@ -302,26 +302,18 @@ const ExportControl = () => {
 
   // Export map as screenshot - Note: This requires html2canvas library to be installed
   const exportMapScreenshot = async () => {
-    setIsExporting(true);
-    setExportType('screenshot');
+  setIsExporting(true);
+  setExportType('screenshot');
+  
+  try {
+    // Dynamic import of leaflet-image
+    const leafletImage = await import('leaflet-image');
     
-    try {
-      // Dynamic import of html2canvas
-      const { default: html2canvas } = await import('html2canvas');
-      
-      // Find the map container
-      const mapContainer = document.querySelector('.leaflet-container');
-      if (!mapContainer) {
-        throw new Error('Map container not found');
+    // Capture the map using leaflet-image
+    leafletImage.default(map, (err, canvas) => {
+      if (err) {
+        throw new Error('Failed to capture map: ' + err.message);
       }
-
-      // Capture the map
-      const canvas = await html2canvas(mapContainer, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2, // Higher resolution
-        backgroundColor: '#ffffff'
-      });
 
       // Convert to blob and download
       canvas.toBlob((blob) => {
@@ -334,15 +326,16 @@ const ExportControl = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }, 'image/png');
-      
-    } catch (error) {
-      console.error('Error capturing map screenshot:', error);
-      alert('Error capturing map screenshot. The screenshot feature requires the html2canvas library.');
-    } finally {
-      setIsExporting(false);
-      setExportType(null);
-    }
-  };
+    });
+    
+  } catch (error) {
+    console.error('Error capturing map screenshot:', error);
+    alert('Error capturing map screenshot: ' + error.message);
+  } finally {
+    setIsExporting(false);
+    setExportType(null);
+  }
+};
 
   const exportOptions = [
     {
