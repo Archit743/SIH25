@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-draw';
+import { MapContext } from '../../context/MapContext';
 
 const DrawingTools = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingMode, setDrawingMode] = useState(null);
-  const [drawnLayers, setDrawnLayers] = useState([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
   const controlRef = useRef(null);
@@ -15,6 +15,15 @@ const DrawingTools = () => {
   const measurementTooltipRef = useRef(null);
   const previewLayerRef = useRef(null);
   const map = useMap();
+
+  // Get drawing state from context
+  const {
+    drawnLayers,
+    setDrawnLayers,
+    addDrawnLayer,
+    removeDrawnLayer,
+    clearAllDrawnLayers
+  } = useContext(MapContext);
 
   // Utility function to calculate distance between two points
   const calculateDistance = (latlng1, latlng2) => {
@@ -542,15 +551,18 @@ const DrawingTools = () => {
       
       console.log('Drawn layer:', geoJson, 'Measurements:', measurements);
       
-      // Store reference with measurements
+      // Store reference with measurements using context function
       const layerId = Date.now().toString();
-      setDrawnLayers(prev => [...prev, { 
+      const layerData = { 
         id: layerId, 
         layer, 
         geoJson, 
         type: layerType, 
         measurements 
-      }]);
+      };
+      
+      // Use context function to add layer
+      addDrawnLayer(layerData);
       
       // Clean up preview elements
       if (measurementTooltipRef.current) {
@@ -599,14 +611,14 @@ const DrawingTools = () => {
     drawnLayers.forEach(({ layer }) => {
       map.removeLayer(layer);
     });
-    setDrawnLayers([]);
+    clearAllDrawnLayers(); // Use context function
   };
 
   const removeLayer = (layerId) => {
     const layerData = drawnLayers.find(l => l.id === layerId);
     if (layerData) {
       map.removeLayer(layerData.layer);
-      setDrawnLayers(prev => prev.filter(l => l.id !== layerId));
+      removeDrawnLayer(layerId); // Use context function
     }
   };
 

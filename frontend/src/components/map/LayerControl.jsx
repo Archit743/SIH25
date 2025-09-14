@@ -142,7 +142,7 @@ const LayerControl = () => {
   };
 
   return (
-    <div className="absolute top-4 right-4 z-[1003]" ref={controlRef}>
+    <div className="absolute top-3 right-32 z-[1003]" ref={controlRef}>
       <div 
         onClick={toggleExpanded}
         className={`bg-white rounded-full shadow-lg cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-110 active:scale-95 hover:shadow-xl ${isExpanded ? 'rotate-180' : ''}`}

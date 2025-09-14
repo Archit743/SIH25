@@ -33,9 +33,28 @@ export const MapProvider = ({ children }) => {
   const [loadingBoundaries, setLoadingBoundaries] = useState(false);
   const [boundariesEnabled, setBoundariesEnabled] = useState(false);
 
+  // Add drawing-related state
+  const [drawnLayers, setDrawnLayers] = useState([]);
+
   const addLayer = useCallback((key, data) => {
     console.log(`Adding layer: ${key}`, data);
     setLayers((prev) => ({ ...prev, [key]: data }));
+  }, []);
+
+  // Drawing layer management functions
+  const addDrawnLayer = useCallback((layerData) => {
+    console.log('Adding drawn layer:', layerData);
+    setDrawnLayers((prev) => [...prev, layerData]);
+  }, []);
+
+  const removeDrawnLayer = useCallback((layerId) => {
+    console.log('Removing drawn layer:', layerId);
+    setDrawnLayers((prev) => prev.filter(layer => layer.id !== layerId));
+  }, []);
+
+  const clearAllDrawnLayers = useCallback(() => {
+    console.log('Clearing all drawn layers');
+    setDrawnLayers([]);
   }, []);
 
   const resetToIndia = useCallback(() => {
@@ -195,6 +214,12 @@ export const MapProvider = ({ children }) => {
         setBoundariesEnabled,
         toggleBoundaries,
         resetToIndia,
+        // Drawing-related context values
+        drawnLayers,
+        setDrawnLayers,
+        addDrawnLayer,
+        removeDrawnLayer,
+        clearAllDrawnLayers,
       }}
     >
       {children}

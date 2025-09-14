@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useCallback, useRef } from 'react';
+import React, { useContext, useEffect, useCallback, useRef, useState } from 'react';
 import { MapContainer as LeafletMap, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapContext } from '../../context/MapContext';
@@ -6,7 +6,10 @@ import LayerControl from './LayerControl';
 import MapLegend from './MapLegend';
 import SearchControl from './SearchControl'; 
 import DrawingTools from './DrawingTools';
+import ExportControl from './ExportControl';
+import ImportControl from './ImportControl';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet-geometryutil';
 
 const MapInstanceSetter = () => {
     const map = useMap();
@@ -521,6 +524,8 @@ const MapContainer = () => {
       <SearchControl />
       <MapLegend />
       <DrawingTools />
+      <ExportControl />
+      <ImportControl />
       <ScaleControl /> 
     </LeafletMap>
   );
