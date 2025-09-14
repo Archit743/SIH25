@@ -301,7 +301,8 @@ const ExportControl = () => {
   };
 
   // Export map as screenshot - Note: This requires html2canvas library to be installed
-  const exportMapScreenshot = async () => {
+  // Updated exportMapScreenshot method that handles markers properly
+const exportMapScreenshot = async () => {
   setIsExporting(true);
   setExportType('screenshot');
   
@@ -309,10 +310,48 @@ const ExportControl = () => {
     // Dynamic import of leaflet-image
     const leafletImage = await import('leaflet-image');
     
+    // Temporarily hide markers to avoid the error
+    const markerLayers = [];
+    drawnLayers.forEach(layerData => {
+      if (layerData.type === 'marker') {
+        map.removeLayer(layerData.layer);
+        markerLayers.push(layerData);
+      }
+    });
+    
     // Capture the map using leaflet-image
     leafletImage.default(map, (err, canvas) => {
+      // Restore markers after capture
+      markerLayers.forEach(layerData => {
+        layerData.layer.addTo(map);
+      });
+      
       if (err) {
         throw new Error('Failed to capture map: ' + err.message);
+      }
+
+      // If there were markers, draw them manually on the canvas
+      if (markerLayers.length > 0) {
+        const ctx = canvas.getContext('2d');
+        const mapSize = map.getSize();
+        const mapBounds = map.getBounds();
+        
+        markerLayers.forEach(layerData => {
+          const marker = layerData.layer;
+          const position = marker.getLatLng();
+          
+          // Convert lat/lng to pixel coordinates
+          const point = map.latLngToContainerPoint(position);
+          
+          // Draw marker as a simple circle
+          ctx.fillStyle = '#3388ff';
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        });
       }
 
       // Convert to blob and download
